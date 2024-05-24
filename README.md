@@ -1,6 +1,10 @@
-# meta-dependencytrack
+# meta-cyclonedx
 
-`meta-dependencytrack` is a [Yocto](https://www.yoctoproject.org/) meta-layer which produces a [CycloneDX](https://cyclonedx.org/) Software Bill of Materials (aka [SBOM](https://www.ntia.gov/SBOM)) from your root filesystem and then uploads it to a [Dependency-Track](https://dependencytrack.org/) server against the project of your choice.
+`meta-cyclonedx` is a [Yocto](https://www.yoctoproject.org/) meta-layer which produces a [CycloneDX](https://cyclonedx.org/) Software Bill of Materials (aka [SBOM](https://www.ntia.gov/SBOM)) from your root filesystem.  
+This repository is forked from [BG Networks repository](https://github.com/bgnetworks/meta-dependencytrack) but differs by the following:
+- Removed support for DependencyTrack.
+- Exported CycloneDX include packages, but also vulnerabilities found by Yocto.
+- generation of CPE is fixed and also generate purl for packages.
 
 ## Installation
 
@@ -8,40 +12,25 @@ To install this meta-layer simply clone the repository into the `sources` direct
 
 ```sh
 $ cd sources
-$ git clone https://github.com/bgnetworks/meta-dependencytrack.git
+$ git clone https://github.com/savoirfairelinux/meta-cyclonedx.git
 ```
 
 and in your `bblayers.conf` file:
 
 ```sh
-BBLAYERS += "${BSPDIR}/sources/meta-dependencytrack"
+BBLAYERS += "${BSPDIR}/sources/meta-cyclonedx"
 ```
 
 ## Configuration
 
-To enable and configure the layer simply inherit the `dependency-track` class in your `local.conf` file and then set the following variables:
-
-* `DEPENDENCYTRACK_PROJECT` - The ID of the project in Dependency-Track
-* `DEPENDENCYTRACK_API_URL` - The URL of the Dependency-Track API server. (*Note:* this is usually different from the URL of the web server you use in your browser)
-* `DEPENDENCYTRACK_API_KEY` - An authentication key for the server. You can find these in the `Teams` section of the `Adminitration` page in Dependency-Track.
+To enable and configure the layer simply inherit the `cyclonedx-export` class in your `local.conf` file and then set the following variables:
 
 ### Example
 
 ```sh
-DEPENDENCYTRACK_PROJECT = "41990900-1b3c-4ccd-8b55-57dd0ddc32d9"
-DEPENDENCYTRACK_API_URL = "http://localhost:8081/api"
-DEPENDENCYTRACK_API_KEY = "mkj6wn4dziQm7UmrBJcym5f6hOKBDxGB"
-INHERIT += "dependency-track"
+INHERIT += "cyclonedx-export"
 ```
-
-### Finding your Project ID
-
-![Project ID](docs/project-id.png)
-
-### Finding your API Key
-
-![API Key](docs/api-key.png)
 
 ## Building and Uploading
 
-Once everything is configured simply build your image as you normally would. The final CycloneDX SBOM is saved as `tmp/deploy/dependency-track/bom.json` and, after buiding is complete, you should be able to simply refresh the project in Dependency Track to see the results of the scan.
+Once everything is configured simply build your image as you normally would. The final CycloneDX SBOM is saved as `tmp/deploy/cyclonedx-export/bom.json` and, after buiding is complete, you should be able to simply refresh the project in Dependency Track to see the results of the scan.
