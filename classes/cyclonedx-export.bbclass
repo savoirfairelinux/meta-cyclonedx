@@ -8,9 +8,9 @@ CVE_PRODUCT ??= "${BPN}"
 CVE_VERSION ??= "${PV}"
 
 CYCLONEDX_EXPORT_DIR ??= "${DEPLOY_DIR}/cyclonedx-export"
-CYCLONEDX_EXPORT_SBOM ??= "${DEPENDENCYTRACK_DIR}/bom.json"
+CYCLONEDX_EXPORT_SBOM ??= "${CYCLONEDX_EXPORT_DIR}/bom.json"
 CYCLONEDX_EXPORT_TMP ??= "${TMPDIR}/cyclonedx-export"
-CYCLONEDX_EXPORT_LOCK ??= "${DEPENDENCYTRACK_TMP}/bom.lock"
+CYCLONEDX_EXPORT_LOCK ??= "${CYCLONEDX_EXPORT_TMP}/bom.lock"
 
 python do_cyclonedx_init() {
     import uuid
