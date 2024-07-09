@@ -27,7 +27,7 @@ python do_cyclonedx_init() {
         "serialNumber": "urn:uuid:" + str(uuid.uuid4()),
         "version": 1,
         "metadata": {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now().astimezone().isoformat(),
             "tools": [{"name": "yocto"}]
         },
         "components": []
