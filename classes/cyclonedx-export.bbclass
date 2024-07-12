@@ -15,7 +15,7 @@ CYCLONEDX_EXPORT_LOCK ??= "${CYCLONEDX_EXPORT_TMP}/bom.lock"
 
 python do_cyclonedx_init() {
     import uuid
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     timestamp = datetime.now(timezone.utc).isoformat()
     sbom_dir = d.getVar("CYCLONEDX_EXPORT_DIR")
