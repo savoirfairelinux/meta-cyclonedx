@@ -58,6 +58,11 @@ do_cyclonedx_init[eventmask] = "bb.event.BuildStarted"
 python do_cyclonedx_package_collect() {
     import oe.cve_check
 
+    # ignore non-target packages
+    for ignored_suffix in (d.getVar("SPECIAL_PKGSUFFIX") or "").split():
+        if d.getVar("PN").endswith(ignored_suffix):
+            return
+
     # load the bom
     name = d.getVar("CVE_PRODUCT")
     version = d.getVar("CVE_VERSION")
