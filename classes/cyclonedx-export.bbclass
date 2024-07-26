@@ -112,7 +112,7 @@ python do_cyclonedx_package_collect() {
     write_json(d.getVar("CYCLONEDX_EXPORT_VEX"), vex)
 }
 
-addtask do_cyclonedx_package_collect before do_build after do_fetch
+addtask do_cyclonedx_package_collect before do_build
 do_cyclonedx_package_collect[nostamp] = "1"
 do_cyclonedx_package_collect[lockfiles] += "${CYCLONEDX_EXPORT_LOCK}"
 do_rootfs[recrdeptask] += "do_cyclonedx_package_collect"
