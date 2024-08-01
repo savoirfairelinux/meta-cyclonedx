@@ -64,16 +64,7 @@ python do_cyclonedx_package_collect() {
             return
 
     # load the bom
-    products = d.getVar("CVE_PRODUCT")
-    # if this has been unset then we're not scanning for CVEs here (for example, image recipes)
-    if not products:
-        return
-
-    # if the recipe has been skipped/ignored we return
-    if d.getVar("PN") in (d.getVar("CVE_CHECK_SKIP_RECIPE") or "").split():
-        bb.note("Recipe has been skipped by cyclonedx package collect")
-        return
-
+    name = d.getVar("CVE_PRODUCT")
     version = d.getVar("CVE_VERSION")
     sbom = read_json(d.getVar("CYCLONEDX_EXPORT_SBOM"))
     # extract the sbom serial number without "urn:uuid:" prefix
@@ -81,14 +72,14 @@ python do_cyclonedx_package_collect() {
     sbom_serial_number = sbom["serialNumber"][len("urn:uuid:"):]
     vex = read_json(d.getVar("CYCLONEDX_EXPORT_VEX"))
 
-    for pkg in generate_packages_list(products, version):
+    for pkg in generate_packages_list(name, version):
         if not next((c for c in sbom["components"] if c["cpe"] == pkg["cpe"]), None):
             sbom["components"].append(pkg)
             bom_ref = pkg["bom-ref"]
 
             # populate vex file with patched CVEs
             for _, patched_cve in enumerate(oe.cve_check.get_patched_cves(d)):
-                bb.debug(2, f"Found patch for CVE {patched_cve} in {pkg['name']}@{version}")
+                bb.debug(2, f"Found patch for CVE {patched_cve} in {name}@{version}")
                 index_found = next((i for i, v in enumerate(vex["vulnerabilities"]) if v["id"] == patched_cve), None)
                 if index_found is None:
                     vex["vulnerabilities"].append({
@@ -110,7 +101,7 @@ python do_cyclonedx_package_collect() {
             cve_check_ignore = d.getVar("CVE_CHECK_IGNORE")
             if cve_check_ignore is not None:
                 for ignored_cve in cve_check_ignore.split():
-                    bb.debug(2, f"Found ignore statement for CVE {ignored_cve} in {pkg['name']}@{version}")
+                    bb.debug(2, f"Found ignore statement for CVE {ignored_cve} in {name}@{version}")
                     index_found = next((i for i, v in enumerate(vex["vulnerabilities"]) if v["id"] == ignored_cve), None)
                     if index_found is None:
                         vex["vulnerabilities"].append({
