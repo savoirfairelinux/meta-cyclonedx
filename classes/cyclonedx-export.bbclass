@@ -167,7 +167,7 @@ def generate_packages_list(products_names, version):
             "version": version,
             "type": "library",
             "cpe": 'cpe:2.3:*:{}:{}:{}:*:*:*:*:*:*:*'.format(vendor or "*", product, version),
-            "purl": 'pkg:{}/{}@{}'.format(vendor or "generic", product, version),
+            "purl": 'pkg:generic/{}{}@{}'.format(f"{vendor}/" if vendor else '', product, version),
             "bom-ref": str(uuid.uuid4())
         }
         if vendor != "":
