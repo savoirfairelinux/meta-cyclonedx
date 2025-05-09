@@ -72,6 +72,9 @@ python do_cyclonedx_package_collect() {
     sbom_serial_number = sbom["serialNumber"][len("urn:uuid:"):]
     vex = read_json(d.getVar("CYCLONEDX_EXPORT_VEX"))
 
+    dict_id_ref_patched = {}
+    dict_id_ref_ignored = {}
+
     for pkg in generate_packages_list(name, version):
         if not next((c for c in sbom["components"] if c["cpe"] == pkg["cpe"]), None):
             sbom["components"].append(pkg)
@@ -80,6 +83,13 @@ python do_cyclonedx_package_collect() {
             # populate vex file with patched CVEs
             for _, patched_cve in enumerate(oe.cve_check.get_patched_cves(d)):
                 bb.debug(2, f"Found patch for CVE {patched_cve} in {name}@{version}")
+                if patched_cve not in dict_id_ref_patched:
+                    dict_id_ref_patched[patched_cve] = []
+                if bom_ref not in dict_id_ref_patched[patched_cve]:
+                    dict_id_ref_patched[patched_cve].append(bom_ref)
+                else:
+                    bb.debug(2, f"Found duplicate patch for CVE {patched_cve} in {name}@{version}")
+                    continue
                 vex["vulnerabilities"].append({
                     "id": patched_cve,
                     # vex documents require a valid source, see https://github.com/DependencyTrack/dependency-track/issues/2977
@@ -96,6 +106,13 @@ python do_cyclonedx_package_collect() {
             if cve_check_ignore is not None:
                 for ignored_cve in cve_check_ignore.split():
                     bb.debug(2, f"Found ignore statement for CVE {ignored_cve} in {name}@{version}")
+                    if ignored_cve not in dict_id_ref_ignored:
+                        dict_id_ref_ignored[ignored_cve] = []
+                    if bom_ref not in dict_id_ref_ignored[ignored_cve]:
+                        dict_id_ref_ignored[ignored_cve].append(bom_ref)
+                    else:
+                        bb.debug(2, f"Found duplicate ignore statement for CVE {ignored_cve} in {name}@{version}")
+                        continue
                     vex["vulnerabilities"].append({
                         "id": ignored_cve,
                         # vex documents require a valid source, see https://github.com/DependencyTrack/dependency-track/issues/2977
