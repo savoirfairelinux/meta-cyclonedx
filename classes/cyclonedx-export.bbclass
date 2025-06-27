@@ -80,6 +80,7 @@ do_cyclonedx_init[eventmask] = "bb.event.BuildStarted"
 
 python do_cyclonedx_package_collect() {
     from oe.cve_check import decode_cve_status
+    from oe.cve_check import get_patched_cves
 
     # ignore non-target packages
     for ignored_suffix in (d.getVar("SPECIAL_PKGSUFFIX") or "").split():
@@ -87,22 +88,36 @@ python do_cyclonedx_package_collect() {
             return
 
     # load the bom
-    name = d.getVar("CVE_PRODUCT")
-    version = d.getVar("CVE_VERSION")
     sbom = read_json(d.getVar("CYCLONEDX_EXPORT_SBOM"))
-    # extract the sbom serial number without "urn:uuid:" prefix
-    # (avoid using builtin str.removeprefix function as Python >= 3.9 required)
-    sbom_serial_number = sbom["serialNumber"][len("urn:uuid:"):]
     vex = read_json(d.getVar("CYCLONEDX_EXPORT_VEX"))
+    products = d.getVar("CVE_PRODUCT").split()
+    for name in products:
+        version = d.getVar("CVE_VERSION").split("+git")[0]
+        # extract the sbom serial number without "urn:uuid:" prefix
+        # (avoid using builtin str.removeprefix function as Python >= 3.9 required)
+        sbom_serial_number = sbom["serialNumber"][len("urn:uuid:"):]
 
-    for pkg in generate_packages_list(name, version):
-        if not next((c for c in sbom["components"] if c["cpe"] == pkg["cpe"]), None):
-            sbom["components"].append(pkg)
-            bom_ref = pkg["bom-ref"]
+        for pkg in generate_packages_list(name, version):
+            if not next((c for c in sbom["components"] if c["cpe"] == pkg["cpe"]), None):
+                sbom["components"].append(pkg)
+                bom_ref = pkg["bom-ref"]
 
-            for cve in (d.getVarFlags("CVE_STATUS") or {}):
-                append_to_vex_vulnerabilities(d, vex, cve, sbom_serial_number, bom_ref)
-    
+                for cve in (d.getVarFlags("CVE_STATUS") or {}):
+                    vex_status, cve_state, justification = decode_cve_status(d, cve)
+                    append_to_vex_vulnerabilities(vex, cve, cve_state,
+                                                  vex_status, justification,
+                                                  sbom_serial_number, bom_ref)
+
+                patched_cves = set()
+                try:
+                    patched_cves = get_patched_cves(d)
+                except FileNotFoundError:
+                    bb.fatal("Failure in searching patches")
+
+                for cve in patched_cves:
+                    append_to_vex_vulnerabilities(vex, cve, "", "resolved", "", 
+                                                  sbom_serial_number, bom_ref)
+
     # write it back to the deploy directory
     write_json(d.getVar("CYCLONEDX_EXPORT_SBOM"), sbom)
     write_json(d.getVar("CYCLONEDX_EXPORT_VEX"), vex)
@@ -158,7 +173,7 @@ def generate_packages_list(products_names, version):
         packages.append(pkg)
     return packages
 
-def append_to_vex_vulnerabilities(d, vex, cve, sbom_serial_number, bom_ref):
+def decode_cve_status(d, cve):
     from oe.cve_check import decode_cve_status
 
     decoded_status, state, justification = decode_cve_status(d, cve)
@@ -166,17 +181,18 @@ def append_to_vex_vulnerabilities(d, vex, cve, sbom_serial_number, bom_ref):
     # See https://docs.yoctoproject.org/singleindex.html#term-CVE_CHECK_STATUSMAP for possible statuses.
     if decoded_status == "Patched":
         bb.debug(2, f"Found patch for {cve} in {d.getVar('BPN')}")
-        vex_state = "resolved"
+        return "resolved", state, justification
     elif decoded_status == "Ignored":
         bb.debug(2, f"Found ignore statement for {cve} in {d.getVar('BPN')}")
-        vex_state = "not_affected"
+        return "not_affected",  state, justification
     else:
-        bb.debug(2, f"Found unknown or irrelevant CVE status {decoded_status} for {cve} in {d.getVer('BPN')}. Skipping...")
-        return
+        bb.debug(2, f"Found unknown or irrelevant CVE status {decoded_status} for {cve} in {d.getVar('BPN')}. Skipping...")
+        return "", "", ""
 
+def append_to_vex_vulnerabilities(vex, cve, cve_state, vex_status, justification, sbom_serial_number, bom_ref):
     detail_string = ""
-    if state:
-        detail_string += f"STATE: {state}\n"
+    if cve_state:
+        detail_string += f"STATE: {cve_state}\n"
     if justification:
         detail_string += f"JUSTIFICATION: {justification}\n"
     vex["vulnerabilities"].append({
@@ -185,7 +201,7 @@ def append_to_vex_vulnerabilities(d, vex, cve, sbom_serial_number, bom_ref):
         # this should always be NVD for yocto CVEs.
         "source": {"name": "NVD", "url": f"https://nvd.nist.gov/vuln/detail/{cve}"},
         "analysis": {
-            "state": vex_state,
+            "state": vex_status,
             "detail": detail_string
         },
         "affects": [{"ref": f"urn:cdx:{sbom_serial_number}/1#{bom_ref}"}]
